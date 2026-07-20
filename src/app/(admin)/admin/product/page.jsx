@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import ActionDropdown from "@/components/admin/ActionDropdown";
 import { fetchProductServer } from "@/utils/api.server";
 import TableHeader from "@/components/admin/TableHeader";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import ActionDropdown from "@/components/admin/ActionDropdown";
 import { fetchRoomsServer } from "@/utils/api.server";
 import StatusBtn from "@/components/admin/StatusBtn";
