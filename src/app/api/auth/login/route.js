@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BACKEND = process.env.API_BASE_URL || "http://localhost:5000/api/";
+const BACKEND = (process.env.API_BASE_URL || "http://localhost:5000/api").replace(/\/+$/, "");
 const IS_PROD = process.env.NODE_ENV === "production";
 
 const COOKIE_BASE = {
@@ -22,10 +22,11 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
-        // Forward to backend
-        const backendRes = await fetch(`${BACKEND}user/login`, {
+        // Forward to backend — credentials: "include" ensures cookies are forwarded
+        const backendRes = await fetch(`${BACKEND}/user/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify(body),
         });
 

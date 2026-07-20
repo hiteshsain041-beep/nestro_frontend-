@@ -72,7 +72,7 @@ export default function OTPVerification() {
     // ── Registration verification flow ─────────────────────────────────
     try {
       setLoading(true);
-      const { data } = await client.post("/user/verify-otp", { email, otp: finalOTP });
+      const { data } = await client.post("user/verify-otp", { email, otp: finalOTP });
       toast.success(data.message);
       router.push("/login");
     } catch (error) {
@@ -85,7 +85,7 @@ export default function OTPVerification() {
   async function resendOTP() {
     try {
       setLoading(true);
-      const { data } = await client.post("/user/resend-otp", { email });
+      const { data } = await client.post("user/resend-otp", { email });
       toast.success(data.message);
       setOtp(Array(6).fill(""));
       setError("");

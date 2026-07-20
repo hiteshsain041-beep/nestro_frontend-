@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const BACKEND = process.env.API_BASE_URL || "http://localhost:5000/api/";
+const BACKEND = (process.env.API_BASE_URL || "http://localhost:5000/api").replace(/\/+$/, "");
 const IS_PROD = process.env.NODE_ENV === "production";
 
 /**
@@ -15,8 +15,9 @@ export async function POST() {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get("jwt")?.value;
-        await fetch(`${BACKEND}user/logout`, {
+        await fetch(`${BACKEND}/user/logout`, {
             method: "POST",
+            credentials: "include",
             headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
     } catch {
