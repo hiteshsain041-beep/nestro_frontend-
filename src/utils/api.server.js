@@ -5,20 +5,23 @@ import { cache } from "react";
 
 // ── Resolve the API base URL ──────────────────────────────────────────────────
 function getBaseUrl() {
-    const url =
-        process.env.API_BASE_URL ||           // ✅ preferred — plain server var
-        process.env.NEXT_PUBLIC_BASE_URL ||   // fallback (may be undefined at SSR)
-        "http://localhost:5000/api/";          // hard-coded last resort
+    const raw =
+        process.env.API_BASE_URL ||
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        "http://localhost:5000/api";
 
-    if (!url || url === "undefined") {
+    if (!raw || raw === "undefined") {
         console.error(
             "[api.server] ⚠️  Base URL is undefined.\n" +
-            "   Add  API_BASE_URL=http://localhost:5000/api/  to frontend/.env\n" +
+            "   Add  API_BASE_URL=https://nestro-backend-awcg.onrender.com/api  to frontend/.env\n" +
             "   and restart the Next.js dev server."
         );
     }
 
-    return url;
+    // Strip trailing slash — prevents double-slash when axios appends a path
+    // e.g. "https://example.com/api/" + "user/login" → "https://example.com/api//user/login" ❌
+    //      "https://example.com/api"  + "user/login" → "https://example.com/api/user/login"  ✅
+    return (raw || "").replace(/\/+$/, "");
 }
 
 // ── Shared axios factory ──────────────────────────────────────────────────────

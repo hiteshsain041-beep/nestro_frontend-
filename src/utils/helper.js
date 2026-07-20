@@ -2,8 +2,12 @@ import axios from "axios";
 
 const isDev = process.env.NODE_ENV === "development";
 
+// Strip trailing slash so baseURL + "user/login" never becomes "/api//user/login"
+const rawBase = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000/api";
+const BASE_URL = rawBase.replace(/\/+$/, "");
+
 const client = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_BASE_URL,
+    baseURL: BASE_URL,
     timeout: 10000,
     withCredentials: true,
 });
