@@ -8,7 +8,6 @@ import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
 import { toast } from "sonner";
 
 import ThemeToggle from "./ThemeToggle";
-import { client } from "@/utils/helper";
 import { lsToCart } from "@/redux/features/cartSlice";
 
 const LANGUAGES = [
@@ -77,14 +76,22 @@ export default function Header({ user }) {
 
   const handleLogout = async () => {
     try {
-      const { data } = await client.post("/user/logout");
-      toast.success(data.message);
+      // IMPORTANT: call the Next.js proxy route, NOT the Express backend directly.
+      // /api/auth/logout clears the jwt + role cookies on the frontend domain.
+      // Calling the Express backend directly would only clear cookies on the
+      // backend domain, leaving the frontend cookies intact.
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      toast.success(data.message || "Logged out successfully");
       setOpen(false);
       setMobileOpen(false);
+      router.refresh(); // re-render layout so Header receives user=null
       router.replace("/");
-      router.refresh();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Logout failed");
+    } catch {
+      toast.error("Logout failed. Please try again.");
     }
   };
 

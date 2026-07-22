@@ -1,7 +1,6 @@
 
 import axios from "axios";
 import { cookies } from "next/headers";
-import { cache } from "react";
 
 // ── Resolve the API base URL ──────────────────────────────────────────────────
 function getBaseUrl() {
@@ -73,7 +72,7 @@ function logError(label, error) {
  * This prevents the admin layout from hitting the backend on every render
  * and eliminates the continuous GET /admin loop in Turbopack dev mode.
  */
-export const getProfile = cache(async () => {
+export const getProfile = async () => {
     try {
         const http = await serverClient();
         const response = await http.get("user/profile");
@@ -90,7 +89,7 @@ export const getProfile = cache(async () => {
             message: error.response?.data?.message || error.message || "Failed to fetch profile",
         };
     }
-});
+};
 
 export const fetchRoomsServer = async (queryObject = {}) => {
     try {

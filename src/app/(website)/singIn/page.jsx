@@ -41,14 +41,20 @@ export default function SignInPage() {
 
       toast.success(data.message || "Login successful!");
 
-      // Redirect based on role
+      // IMPORTANT: refresh FIRST so the Server Layout re-runs getProfile()
+      // with the new jwt cookie, then navigate. Without this order the layout
+      // re-renders with the old (null) user and Header stays on guest UI.
+      router.refresh();
+
+      // Small tick so refresh starts before navigation kicks in
+      await new Promise((r) => setTimeout(r, 50));
+
       const role = data.data?.user?.role;
       if (role === "admin" || role === "superAdmin") {
         router.push("/admin");
       } else {
         router.push("/");
       }
-      router.refresh(); // force Next.js to re-read cookies & re-render layout
     } catch {
       toast.error("Unable to reach the server. Please check your connection.");
     } finally {
