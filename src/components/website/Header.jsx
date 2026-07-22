@@ -76,22 +76,21 @@ export default function Header({ user }) {
 
   const handleLogout = async () => {
     try {
-      // IMPORTANT: call the Next.js proxy route, NOT the Express backend directly.
-      // /api/auth/logout clears the jwt + role cookies on the frontend domain.
-      // Calling the Express backend directly would only clear cookies on the
-      // backend domain, leaving the frontend cookies intact.
-      const res = await fetch("/api/auth/logout", {
+      // Call the Next.js proxy route — NOT the Express backend directly.
+      // This clears jwt + role cookies on the frontend (Vercel) domain.
+      await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });
-      const data = await res.json();
-      toast.success(data.message || "Logged out successfully");
-      setOpen(false);
-      setMobileOpen(false);
-      router.refresh(); // re-render layout so Header receives user=null
-      router.replace("/");
     } catch {
-      toast.error("Logout failed. Please try again.");
+      // Even if the request fails, force a full reload to clear UI state
+    } finally {
+      // window.location.href triggers a full page reload — forces Next.js to
+      // re-run all Server Components (layout + getProfile) with cleared cookies,
+      // so Header reliably switches from authenticated to guest UI.
+      // router.push() + router.refresh() is NOT reliable here because the
+      // server-component cache may still serve the authenticated layout.
+      window.location.href = "/";
     }
   };
 

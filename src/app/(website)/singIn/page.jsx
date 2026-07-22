@@ -41,19 +41,15 @@ export default function SignInPage() {
 
       toast.success(data.message || "Login successful!");
 
-      // IMPORTANT: refresh FIRST so the Server Layout re-runs getProfile()
-      // with the new jwt cookie, then navigate. Without this order the layout
-      // re-renders with the old (null) user and Header stays on guest UI.
-      router.refresh();
-
-      // Small tick so refresh starts before navigation kicks in
-      await new Promise((r) => setTimeout(r, 50));
-
+      // window.location.href forces a full browser navigation — Next.js
+      // re-runs all Server Components fresh with the new jwt cookie,
+      // so the layout calls getProfile() and Header shows authenticated UI.
+      // router.push() alone is NOT enough — it reuses the cached server render.
       const role = data.data?.user?.role;
       if (role === "admin" || role === "superAdmin") {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else {
-        router.push("/");
+        window.location.href = "/";
       }
     } catch {
       toast.error("Unable to reach the server. Please check your connection.");
