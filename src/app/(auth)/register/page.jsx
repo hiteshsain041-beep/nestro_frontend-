@@ -23,14 +23,23 @@ export default function Page() {
         }
         try {
             setLoading(true);
-            const response = await client.post("user/register", formData);
+            const response = await client.post("user/register", {
+                name: formData.name.trim(),
+                email: formData.email.trim().toLowerCase(),
+                password: formData.password,
+            }, { timeout: 60000 });
             if (response.data.success) {
                 toast.success(response.data.message);
                 setFormData({ name: "", email: "", password: "" });
-                router.push(`/verify-otp?email=${response.data.user}`);
+                router.push(`/verify-otp?email=${encodeURIComponent(response.data.user)}`);
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Internal Server Error");
+            toast.error(
+                error.friendlyMessage ||
+                error.response?.data?.message ||
+                error.message ||
+                "Registration failed"
+            );
         } finally {
             setLoading(false);
         }

@@ -2,13 +2,15 @@ import axios from "axios";
 
 const isDev = process.env.NODE_ENV === "development";
 
-// Strip trailing slash so baseURL + "user/login" never becomes "/api//user/login"
+// BASE_URL always ends with exactly one slash so that
+// client.get("user/login") → baseURL + "user/login" = ".../api/user/login" ✅
+// Without trailing slash: ".../api" + "user/login" = ".../apiuser/login"   ❌
 const rawBase = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000/api";
-const BASE_URL = rawBase.replace(/\/+$/, "");
+const BASE_URL = `${rawBase.replace(/\/+$/, "")}/`;
 
 const client = axios.create({
     baseURL: BASE_URL,
-    timeout: 10000,
+    timeout: 30000,       // increased from 10s — Render cold-starts can be slow
     withCredentials: true,
 });
 
@@ -16,9 +18,11 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
     if (isDev) {
         const hasAuth = Boolean(config.headers?.Authorization);
-        // Log method + URL. Never log the actual token value.
+        // Strip leading slash from config.url before concatenating with baseURL
+        // to avoid double-slash in the logged URL (baseURL already ends with /)
+        const urlPath = (config.url ?? "").replace(/^\/+/, "");
         console.debug(
-            `[API →] ${config.method?.toUpperCase()} ${config.baseURL ?? ""}${config.url}` +
+            `[API →] ${config.method?.toUpperCase()} ${config.baseURL ?? ""}${urlPath}` +
             ` | auth-header: ${hasAuth ? "present" : "absent (using cookie)"}`
         );
     }
