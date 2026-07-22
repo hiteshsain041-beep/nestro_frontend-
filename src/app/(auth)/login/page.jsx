@@ -1,6 +1,5 @@
 "use client";
 
-import { client } from "@/utils/helper";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -12,70 +11,144 @@ import { FaApple } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useDispatch } from "react-redux";
 import { lsToCart } from "@/redux/features/cartSlice";
+import { client } from "@/utils/helper";
 
 export default function Page() {
   const dispatch = useDispatch();
-
-  const googleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const response = await client.post("user/google-login", {
-        name: user.displayName, email: user.email, photo: user.photoURL, uid: user.uid,
-      });
-      if (response.data.success) {
-        toast.success("Login Successful");
-        router.push("/");
-      }
-    } catch (error) {
-      // console.log(error);
-      toast.error(error.message);
-    }
-  };
-
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  function handleChange(e) {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // ── Cart sync helper — called after any successful login ──────────────────
+  async function syncCart() {
+    try {
+      const localCart = JSON.parse(localStorage.getItem("cart")) || { items: [] };
+      const syncResponse = await client.post("cart/sync-cart", {
+        localCart: JSON.stringify(localCart.items),
+      });
+      if (syncResponse.data.success) {
+        const serverItems = syncResponse.data.cart.items ?? [];
+        let final_total = 0;
+        let original_total = 0;
+        const hydratedItems = serverItems.map(({ productId: p, qty }) => {
+          final_total += p.salePrice * qty;
+          original_total += p.originalPrice * qty;
+          return {
+            id: p._id,
+            name: p.name,
+            thumbnail: p.thumbnail?.trim() || null,
+            salePrice: p.salePrice,
+            originalPrice: p.originalPrice,
+            discount: p.discount,
+            qty,
+          };
+        });
+        localStorage.setItem(
+          "cart",
+          JSON.stringify({ final_total, original_total, items: hydratedItems })
+        );
+        dispatch(lsToCart());
+      }
+    } catch {
+      // sync failed — local cart remains intact, non-fatal
+    }
   }
 
+  // ── Email / password login ─────────────────────────────────────────────────
   async function loginHandler(e) {
     e.preventDefault();
+    if (!formData.email.trim() || !formData.password.trim()) {
+      toast.error("Email and password are required");
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await client.post("user/login", formData);
-      if (response.data.success) {
-        toast.success(response.data.message);
-        try {
-          const localCart = JSON.parse(localStorage.getItem("cart")) || { items: [] };
-          const syncResponse = await client.post("cart/sync-cart", { localCart: JSON.stringify(localCart.items) });
-          if (syncResponse.data.success) {
-            const serverItems = syncResponse.data.cart.items ?? [];
-            let final_total = 0;
-            let original_total = 0;
-            const hydratedItems = serverItems.map(({ productId: p, qty }) => {
-              final_total += p.salePrice * qty;
-              original_total += p.originalPrice * qty;
-              return { id: p._id, name: p.name, thumbnail: p.thumbnail?.trim() || null, salePrice: p.salePrice, originalPrice: p.originalPrice, discount: p.discount, qty };
-            });
-            localStorage.setItem("cart", JSON.stringify({ final_total, original_total, items: hydratedItems }));
-            dispatch(lsToCart());
-          }
-        } catch { /* sync failed — local cart intact */ }
-        setFormData({ email: "", password: "" });
-        router.push("/");
+
+      // Call the Next.js proxy route — NOT the Express backend directly.
+      // The proxy sets jwt + role cookies on the frontend (Vercel) domain.
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        toast.error(data.message || "Login failed. Please try again.");
+        return;
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Internal Server Error");
+
+      toast.success(data.message || "Login successful!");
+      await syncCart();
+      setFormData({ email: "", password: "" });
+
+      // window.location.href forces a full browser navigation.
+      // This makes Next.js re-run all Server Components fresh,
+      // so WebsiteLayout calls getProfile() with the new jwt cookie
+      // and Header receives the real user prop (not null).
+      // router.push() is NOT enough — it reuses the server-component cache.
+      const role = data.data?.user?.role;
+      if (role === "admin" || role === "superAdmin") {
+        window.location.href = "/";
+      } else {
+        window.location.href = "/";
+      }
+    } catch {
+      toast.error("Unable to reach the server. Please check your connection.");
     } finally {
       setLoading(false);
     }
   }
 
+  // ── Google login ───────────────────────────────────────────────────────────
+  async function googleLogin() {
+    try {
+      setGoogleLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Call the Next.js proxy route — NOT the Express backend directly.
+      const res = await fetch("/api/auth/google-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: user.displayName,
+          email: user.email,
+          photo: user.photoURL,
+          uid: user.uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        toast.error(data.message || "Google login failed. Please try again.");
+        return;
+      }
+
+      toast.success("Login Successful");
+      await syncCart();
+
+      // Full reload — same reason as above
+      window.location.href = "/";
+    } catch (error) {
+      toast.error(error.message || "Google login failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────
   return (
     <div className="w-full flex flex-col justify-center">
 
@@ -96,9 +169,10 @@ export default function Page() {
           <input
             name="email"
             value={formData.email}
-            onChange={handleChange}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             type="email"
             placeholder="rahul@email.com"
+            required
             className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#93633e] focus:ring-2 focus:ring-[#93633e]/10 transition"
           />
         </div>
@@ -106,7 +180,9 @@ export default function Page() {
         {/* Password */}
         <div>
           <div className="flex justify-between items-center mb-1.5">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Password</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Password
+            </label>
             <Link href="/forget-Password" className="text-xs text-[#93633e] font-medium hover:underline">
               Forgot password?
             </Link>
@@ -115,9 +191,10 @@ export default function Page() {
             <input
               name="password"
               value={formData.password}
-              onChange={handleChange}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
+              required
               className="w-full px-4 py-3.5 pr-12 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#93633e] focus:ring-2 focus:ring-[#93633e]/10 transition"
             />
             <button
@@ -131,6 +208,7 @@ export default function Page() {
         </div>
 
         <button
+          type="submit"
           disabled={loading}
           className="w-full bg-[#93633e] text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-[#7b5030] disabled:opacity-50 transition"
         >
@@ -148,10 +226,11 @@ export default function Page() {
         <button
           onClick={googleLogin}
           type="button"
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-gray-300 hover:shadow-sm transition"
+          disabled={googleLoading}
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-gray-300 hover:shadow-sm disabled:opacity-50 transition"
         >
           <FcGoogle size={20} />
-          Continue with Google
+          {googleLoading ? "Signing in..." : "Continue with Google"}
         </button>
 
         <button
@@ -164,7 +243,7 @@ export default function Page() {
       </div>
 
       <p className="text-center mt-7 text-sm text-gray-500">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <button
           type="button"
           onClick={() => router.push("/register")}
