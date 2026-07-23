@@ -1,7 +1,6 @@
 import { FiAlertCircle } from "react-icons/fi";
 import ProductSlider from "./ProductSlider";
 
-// ─── Section label ───────────────────────────────────────────────────────────
 function SectionLabel({ children }) {
     return (
         <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#a46d43] mb-1.5">
@@ -10,7 +9,6 @@ function SectionLabel({ children }) {
     );
 }
 
-// ─── Empty state ─────────────────────────────────────────────────────────────
 function EmptyState() {
     return (
         <div className="py-16 text-center text-[#9a8a7a]">
@@ -21,7 +19,6 @@ function EmptyState() {
     );
 }
 
-// ─── Error state ─────────────────────────────────────────────────────────────
 function ErrorState({ message }) {
     return (
         <div className="py-12 text-center">
@@ -33,38 +30,25 @@ function ErrorState({ message }) {
     );
 }
 
-/**
- * BestSellerSection — Server Component.
- * Props:
- *   products  — pre-fetched product array from page.jsx
- *   error     — error message string if fetch failed
- */
 export default function BestSellerSection({ products = [], error = null }) {
     const bestSellers = products.filter(
         (p) => p.bestSeller === true && p.status !== false
     );
 
     return (
-        <section
-            className="bg-white dark:bg-zinc-950 py-14 sm:py-20"
-            aria-label="Best Sellers"
-        >
+        <section className="bg-white dark:bg-zinc-950 py-14 sm:py-20" aria-label="Best Sellers">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-                {/* Section header */}
-                <div className="flex items-end justify-between mb-2">
-                    <div>
-                        <SectionLabel>Most Loved</SectionLabel>
-                        <h2 className="text-2xl sm:text-3xl font-light text-[#1a1007] dark:text-white">
-                            Best <span className="text-[#a46d43]">Sellers</span>
-                        </h2>
-                        <p className="text-sm text-[#9a8a7a] mt-1">
-                            Our most popular products, chosen by customers like you
-                        </p>
-                    </div>
+                <div className="mb-6">
+                    <SectionLabel>Most Loved</SectionLabel>
+                    <h2 className="text-2xl sm:text-3xl font-light text-[#1a1007] dark:text-white">
+                        Best <span className="text-[#a46d43]">Sellers</span>
+                    </h2>
+                    <p className="text-sm text-[#9a8a7a] mt-1">
+                        Our most popular products, chosen by customers like you
+                    </p>
                 </div>
 
-                {/* Content */}
                 {error ? (
                     <ErrorState message={error} />
                 ) : bestSellers.length === 0 ? (
