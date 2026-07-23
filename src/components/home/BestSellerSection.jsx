@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { FiArrowRight, FiAlertCircle } from "react-icons/fi";
-import ProductCard from "@/components/common/ProductCard";
+import { FiAlertCircle } from "react-icons/fi";
+import ProductSlider from "./ProductSlider";
 
 // ─── Section label ───────────────────────────────────────────────────────────
 function SectionLabel({ children }) {
@@ -34,18 +33,16 @@ function ErrorState({ message }) {
     );
 }
 
-// ─── Main Server Component ───────────────────────────────────────────────────
-
 /**
  * BestSellerSection — Server Component.
- *
  * Props:
- *   products  — pre-fetched products array from page.jsx
- *   error     — error message if fetch failed
+ *   products  — pre-fetched product array from page.jsx
+ *   error     — error message string if fetch failed
  */
 export default function BestSellerSection({ products = [], error = null }) {
-    // Filter best sellers (page.jsx passes all products, we filter here)
-    const bestSellers = products.filter((p) => p.bestSeller === true && p.status !== false);
+    const bestSellers = products.filter(
+        (p) => p.bestSeller === true && p.status !== false
+    );
 
     return (
         <section
@@ -54,22 +51,17 @@ export default function BestSellerSection({ products = [], error = null }) {
         >
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-                {/* Header */}
-                <div className="flex items-end justify-between mb-8">
+                {/* Section header */}
+                <div className="flex items-end justify-between mb-2">
                     <div>
                         <SectionLabel>Most Loved</SectionLabel>
                         <h2 className="text-2xl sm:text-3xl font-light text-[#1a1007] dark:text-white">
                             Best <span className="text-[#a46d43]">Sellers</span>
                         </h2>
-                        <p className="text-sm text-[#9a8a7a] mt-1">Our most popular products, chosen by customers like you</p>
+                        <p className="text-sm text-[#9a8a7a] mt-1">
+                            Our most popular products, chosen by customers like you
+                        </p>
                     </div>
-                    <Link
-                        href="/store"
-                        className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-[#a46d43]
-                       hover:text-[#3a2418] dark:hover:text-[#d9b48b] transition-colors"
-                    >
-                        View All <FiArrowRight size={14} />
-                    </Link>
                 </div>
 
                 {/* Content */}
@@ -78,36 +70,12 @@ export default function BestSellerSection({ products = [], error = null }) {
                 ) : bestSellers.length === 0 ? (
                     <EmptyState />
                 ) : (
-                    <>
-                        {/*
-              Responsive grid:
-                Mobile  → 2 columns
-                Tablet  → 3 columns
-                Desktop → 4 columns
-            */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-                            {bestSellers.map((product, idx) => (
-                                <ProductCard
-                                    key={String(product._id)}
-                                    product={product}
-                                    priority={idx < 4}   /* first row eager-loaded */
-                                    showWishlist
-                                    showQuickView
-                                    showAddToCart
-                                />
-                            ))}
-                        </div>
-
-                        {/* Mobile "View All" */}
-                        <div className="mt-7 text-center sm:hidden">
-                            <Link
-                                href="/store"
-                                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#a46d43]"
-                            >
-                                View All Best Sellers <FiArrowRight size={14} />
-                            </Link>
-                        </div>
-                    </>
+                    <ProductSlider
+                        products={bestSellers}
+                        viewAllHref="/store"
+                        viewAllText="View All Best Sellers"
+                        aboveFold={true}
+                    />
                 )}
             </div>
         </section>
