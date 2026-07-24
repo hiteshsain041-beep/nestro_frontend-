@@ -3,12 +3,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiCheck, FiMapPin } from "react-icons/fi";
-import {
-    fetchAddresses,
-    createAddress,
-    updateAddress,
-    deleteAddress,
-} from "@/utils/api";
 
 // ─── Empty form state ───────────────────────────────────────────────────────
 const EMPTY_FORM = {
@@ -228,13 +222,24 @@ export default function AddressSection({ onAddressSelect }) {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            setUnauthorized(false); // reset on every load attempt
+            setUnauthorized(false);
 
             try {
-                // Call the backend directly with axios (withCredentials: true is set globally)
-                // Using dynamic import of client to avoid circular dependency
-                const { client } = await import("@/utils/helper");
-                const { data } = await client.get("address");
+                // Call the Next.js BFF proxy (/api/address) — NOT Render directly.
+                // This keeps the jwt cookie same-domain (Vercel) so mobile browsers
+                // send it correctly. The proxy reads the cookie server-side and adds
+                // Authorization: Bearer header to the Render request.
+                const res = await fetch("/api/address", {
+                    method: "GET",
+                    credentials: "include",   // send Vercel-domain jwt cookie
+                });
+                const data = await res.json();
+
+                if (res.status === 401) {
+                    setUnauthorized(true);
+                    return;
+                }
+
                 if (data.success) {
                     const list = data.data ?? [];
                     setAddresses(list);
@@ -243,13 +248,8 @@ export default function AddressSection({ onAddressSelect }) {
                         onAddressSelect?.(list[0]);
                     }
                 }
-            } catch (err) {
-                // Only show "unauthorized" UI for genuine 401 responses
-                // Other errors (network, 500) should NOT show the login prompt
-                if (err.response?.status === 401) {
-                    setUnauthorized(true);
-                }
-                // For all other errors, leave addresses empty — user can retry
+            } catch {
+                // Network error — leave form accessible, don't show unauthorized
             } finally {
                 setLoading(false);
             }
@@ -267,59 +267,101 @@ export default function AddressSection({ onAddressSelect }) {
     // ── Add ──────────────────────────────────────────────────────────────────
     const handleAdd = async (form) => {
         setSaving(true);
-        const res = await createAddress(form);
-        setSaving(false);
-        if (res.success) {
-            toast.success(res.message || "Address added successfully");
-            const updated = [res.data, ...addresses];
-            setAddresses(updated);
-            setSelectedId(res.data._id);
-            onAddressSelect?.(res.data);
-            setMode(null);
-        } else if (res.status === 401 || res.message?.toLowerCase().includes("unauthorized")) {
-            setUnauthorized(true);
-            toast.error("Please sign in to save addresses");
-        } else {
-            toast.error(res.message || "Failed to save address");
+        try {
+            const res = await fetch("/api/address", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(form),
+            });
+            const data = await res.json();
+            setSaving(false);
+
+            if (res.status === 401) {
+                setUnauthorized(true);
+                toast.error("Please sign in to save addresses");
+                return;
+            }
+            if (data.success) {
+                toast.success(data.message || "Address added successfully");
+                const updated = [data.address, ...addresses];
+                setAddresses(updated);
+                setSelectedId(data.address._id);
+                onAddressSelect?.(data.address);
+                setMode(null);
+            } else {
+                toast.error(data.message || "Failed to save address");
+            }
+        } catch {
+            setSaving(false);
+            toast.error("Network error. Please try again.");
         }
     };
 
     // ── Edit ─────────────────────────────────────────────────────────────────
     const handleEdit = async (form) => {
         setSaving(true);
-        const res = await updateAddress(editTarget._id, form);
-        setSaving(false);
-        if (res.success) {
-            toast.success(res.message);
-            const updated = addresses.map((a) =>
-                a._id === editTarget._id ? res.data : a
-            );
-            setAddresses(updated);
-            // Keep selection in sync
-            if (selectedId === editTarget._id) onAddressSelect?.(res.data);
-            setMode(null);
-            setEditTarget(null);
-        } else {
-            toast.error(res.message);
+        try {
+            const res = await fetch(`/api/address/${editTarget._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(form),
+            });
+            const data = await res.json();
+            setSaving(false);
+
+            if (res.status === 401) {
+                setUnauthorized(true);
+                toast.error("Session expired. Please sign in again.");
+                return;
+            }
+            if (data.success) {
+                toast.success(data.message || "Address updated");
+                const updated = addresses.map((a) =>
+                    a._id === editTarget._id ? data.address : a
+                );
+                setAddresses(updated);
+                if (selectedId === editTarget._id) onAddressSelect?.(data.address);
+                setMode(null);
+                setEditTarget(null);
+            } else {
+                toast.error(data.message || "Failed to update address");
+            }
+        } catch {
+            setSaving(false);
+            toast.error("Network error. Please try again.");
         }
     };
 
     // ── Delete ───────────────────────────────────────────────────────────────
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this address?")) return;
-        const res = await deleteAddress(id);
-        if (res.success) {
-            toast.success(res.message);
-            const updated = addresses.filter((a) => a._id !== id);
-            setAddresses(updated);
-            // If the deleted one was selected, clear selection
-            if (selectedId === id) {
-                const next = updated[0] ?? null;
-                setSelectedId(next?._id ?? null);
-                onAddressSelect?.(next);
+        try {
+            const res = await fetch(`/api/address/${id}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+            const data = await res.json();
+
+            if (res.status === 401) {
+                setUnauthorized(true);
+                return;
             }
-        } else {
-            toast.error(res.message);
+            if (data.success) {
+                toast.success(data.message || "Address deleted");
+                const updated = addresses.filter((a) => a._id !== id);
+                setAddresses(updated);
+                if (selectedId === id) {
+                    const next = updated[0] ?? null;
+                    setSelectedId(next?._id ?? null);
+                    onAddressSelect?.(next);
+                }
+            } else {
+                toast.error(data.message || "Failed to delete address");
+            }
+        } catch {
+            toast.error("Network error. Please try again.");
         }
     };
 
