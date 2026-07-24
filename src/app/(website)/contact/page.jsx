@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { client } from "@/utils/helper";
 import {
   FiPhone, FiMail, FiMapPin, FiClock,
   FiChevronRight, FiSend, FiMessageCircle,
@@ -150,15 +151,15 @@ export default function ContactPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}contact`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        }
-      );
-      const data = await res.json();
+      // Use the shared axios client — baseURL + withCredentials already configured
+      const { data } = await client.post("contact", {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        subject: form.subject,
+        message: form.message.trim(),
+      });
+
       if (data.success) {
         toast.success(data.message || "Message sent! We'll get back to you within 24 hours.");
         setForm({ name: "", email: "", phone: "", subject: "", message: "" });
@@ -166,8 +167,12 @@ export default function ContactPage() {
       } else {
         toast.error(data.message || "Failed to send message. Please try again.");
       }
-    } catch {
-      toast.error("Unable to reach the server. Please check your connection.");
+    } catch (err) {
+      toast.error(
+        err.friendlyMessage ||
+        err.response?.data?.message ||
+        "Unable to reach the server. Please check your connection."
+      );
     } finally {
       setLoading(false);
     }
