@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { client } from "@/utils/helper";
 import Link from "next/link";
 import {
     FiPackage,
@@ -74,15 +73,18 @@ export default function OrdersPage() {
         setLoading(true);
         setError(null);
         try {
-            const { data } = await client.get("order/my-orders");
+            // Use Next.js BFF proxy — avoids cross-domain cookie issue on mobile
+            const res = await fetch("/api/order/my-orders", {
+                credentials: "include",
+            });
+            const data = await res.json();
             if (data.success) {
                 setOrders(data.orders || []);
             } else {
                 setError(data.message || "Failed to fetch orders");
             }
         } catch (err) {
-            const msg = err.response?.data?.message || err.message || "Something went wrong";
-            setError(msg);
+            setError(err.message || "Something went wrong");
         } finally {
             setLoading(false);
         }

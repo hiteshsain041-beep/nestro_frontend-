@@ -1,6 +1,5 @@
 'use client';
 
-import { client } from "@/utils/helper";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -70,12 +69,34 @@ export default function Checkout({ user }) {
                 state: selectedAddress.state,
             };
 
-            const response = await client.post("order/place", {
-                paymentMethod: payment,
-                shippingAddress,
+            // ── Use Next.js BFF proxy — NOT direct axios to Render ───────────
+            // Mobile browsers block cross-domain cookies; BFF reads the jwt
+            // cookie server-side and adds Authorization: Bearer header.
+            const placeRes = await fetch("/api/order/place", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    paymentMethod: payment,
+                    shippingAddress,
+                }),
             });
 
-            // ── COD ──────────────────────────────────────────────────────────────
+            const response = { data: await placeRes.json() };
+
+            if (placeRes.status === 401) {
+                setPlacing(false);
+                toast.error("Session expired. Please sign in again.");
+                return;
+            }
+
+            if (!response.data.success && payment === "cod") {
+                setPlacing(false);
+                toast.error(response.data.message || "Failed to place order.");
+                return;
+            }
+
+            // ── COD ──────────────────────────────────────────────────────────
             if (payment === "cod") {
                 if (response.data.success) {
                     wipeCart();
@@ -86,7 +107,13 @@ export default function Checkout({ user }) {
                 return;
             }
 
-            // ── Online ────────────────────────────────────────────────────────────
+            // ── Online — Razorpay ─────────────────────────────────────────────
+            if (!response.data.success) {
+                setPlacing(false);
+                toast.error(response.data.message || "Failed to create payment order.");
+                return;
+            }
+
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 currency: "INR",
@@ -96,16 +123,23 @@ export default function Checkout({ user }) {
                 order_id: response.data.razorpay_order_id,
 
                 handler: async (paymentResponse) => {
-                    // Payment captured by Razorpay — verify on our backend
                     try {
-                        const verifyRes = await client.post("order/verify", paymentResponse);
-                        if (verifyRes.data.success) {
+                        // Also proxy the verify call through BFF
+                        const verifyRes = await fetch("/api/order/verify", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify(paymentResponse),
+                        });
+                        const verifyData = await verifyRes.json();
+
+                        if (verifyData.success) {
                             wipeCart();
-                            setSuccessOrderId(verifyRes.data.orderId);
+                            setSuccessOrderId(verifyData.orderId);
                             setPaymentMessage("Your payment has been confirmed and your order is placed.");
                             setPaymentResult("success");
                         } else {
-                            setPaymentMessage(verifyRes.data.message || "Payment verification failed. Contact support.");
+                            setPaymentMessage(verifyData.message || "Payment verification failed. Contact support.");
                             setPaymentResult("failed");
                         }
                     } catch {
@@ -135,10 +169,10 @@ export default function Checkout({ user }) {
 
             const razorpayInstance = new Razorpay(options);
 
-            razorpayInstance.on("payment.failed", (response) => {
+            razorpayInstance.on("payment.failed", (rzpResponse) => {
                 setPlacing(false);
                 setPaymentMessage(
-                    response?.error?.description ||
+                    rzpResponse?.error?.description ||
                     "Your payment could not be processed. Please try a different payment method."
                 );
                 setPaymentResult("failed");
@@ -148,7 +182,7 @@ export default function Checkout({ user }) {
 
         } catch (error) {
             setPlacing(false);
-            toast.error(error.response?.data?.message || "Something went wrong. Please try again.");
+            toast.error(error.message || "Something went wrong. Please try again.");
         }
     }
 
@@ -253,8 +287,8 @@ export default function Checkout({ user }) {
                                         type="button"
                                         onClick={() => setPayment(value)}
                                         className={`relative flex items-center gap-4 rounded-2xl border p-4 text-left transition ${payment === value
-                                                ? "border-gray-900 bg-gray-900 text-white shadow-lg"
-                                                : "border-gray-200 bg-white hover:border-gray-400"
+                                            ? "border-gray-900 bg-gray-900 text-white shadow-lg"
+                                            : "border-gray-200 bg-white hover:border-gray-400"
                                             }`}
                                     >
                                         <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${payment === value ? "bg-white/20" : "bg-gray-100"
