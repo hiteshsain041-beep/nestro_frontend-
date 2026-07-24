@@ -216,6 +216,7 @@ export default function AddressSection({ onAddressSelect }) {
     const [addresses, setAddresses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [unauthorized, setUnauthorized] = useState(false);
 
     // "add" | "edit" | null
     const [mode, setMode] = useState(null);
@@ -234,6 +235,12 @@ export default function AddressSection({ onAddressSelect }) {
                     setSelectedId(res.data[0]._id);
                     onAddressSelect?.(res.data[0]);
                 }
+            } else if (
+                res.message?.toLowerCase().includes("unauthorized") ||
+                res.message?.toLowerCase().includes("no token") ||
+                res.message?.toLowerCase().includes("session")
+            ) {
+                setUnauthorized(true);
             }
             setLoading(false);
         }
@@ -323,8 +330,8 @@ export default function AddressSection({ onAddressSelect }) {
                     </h3>
                 </div>
 
-                {/* Show "Add New" button only when no form is open */}
-                {mode === null && (
+                {/* Show "Add New" button only when no form is open and not unauthorized */}
+                {mode === null && !unauthorized && (
                     <button
                         onClick={() => { setMode("add"); setEditTarget(null); }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-700 transition"
@@ -334,6 +341,22 @@ export default function AddressSection({ onAddressSelect }) {
                     </button>
                 )}
             </div>
+
+            {/* Unauthorized — show login prompt */}
+            {unauthorized && (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50 py-8 px-4 text-center">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">Please sign in to manage addresses</p>
+                    <p className="text-xs text-amber-600 mb-4">
+                        Your session has expired or you are not logged in.
+                    </p>
+                    <a
+                        href="/login"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-5 py-2 text-xs font-semibold text-white hover:bg-gray-700 transition"
+                    >
+                        Sign In
+                    </a>
+                </div>
+            )}
 
             {/* Add / Edit form */}
             {mode !== null && (

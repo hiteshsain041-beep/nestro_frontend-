@@ -172,6 +172,19 @@ export default function Header({ user }) {
               </Link>
             )}
 
+            {/* Mobile Sign Out button — shown only on mobile when user IS logged in */}
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="flex md:hidden h-9 items-center gap-1.5 px-3 rounded-full
+                           border border-red-200 text-red-600 text-[12px] font-semibold
+                           hover:bg-red-600 hover:text-white hover:border-red-600
+                           transition-all duration-200"
+              >
+                Sign Out
+              </button>
+            )}
+
             {/* User dropdown — desktop */}
             <div className="relative hidden md:block" ref={dropdownRef}>
               <button

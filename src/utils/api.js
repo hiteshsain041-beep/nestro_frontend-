@@ -136,7 +136,8 @@ export const fetchAddresses = async () => {
         const { data } = await client.get("address");
         return { success: data.success, data: data.data, message: data.message };
     } catch (error) {
-        return { success: false, data: [], message: error?.response?.data?.message || "Internal Server Error" };
+        const msg = error.response?.data?.message || error.friendlyMessage || "Internal Server Error";
+        return { success: false, data: [], message: msg };
     }
 };
 
@@ -145,7 +146,8 @@ export const createAddress = async (payload) => {
         const { data } = await client.post("address/create", payload);
         return { success: data.success, data: data.address, message: data.message };
     } catch (error) {
-        return { success: false, data: null, message: error?.response?.data?.message || "Internal Server Error" };
+        const msg = error.response?.data?.message || error.friendlyMessage || "Internal Server Error";
+        return { success: false, data: null, message: msg };
     }
 };
 
@@ -154,7 +156,8 @@ export const updateAddress = async (id, payload) => {
         const { data } = await client.put(`address/update/${id}`, payload);
         return { success: data.success, data: data.address, message: data.message };
     } catch (error) {
-        return { success: false, data: null, message: error?.response?.data?.message || "Internal Server Error" };
+        const msg = error.response?.data?.message || error.friendlyMessage || "Internal Server Error";
+        return { success: false, data: null, message: msg };
     }
 };
 
@@ -163,6 +166,7 @@ export const deleteAddress = async (id) => {
         const { data } = await client.delete(`address/delete/${id}`);
         return { success: data.success, message: data.message };
     } catch (error) {
-        return { success: false, message: error?.response?.data?.message || "Internal Server Error" };
+        const msg = error.response?.data?.message || error.friendlyMessage || "Internal Server Error";
+        return { success: false, message: msg };
     }
 };
