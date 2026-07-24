@@ -17,8 +17,8 @@ export default function StoreShell({ children, filterSlot }) {
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4">
 
-            {/* ── Mobile filter toggle bar ──────────────────── */}
-            <div className="flex items-center justify-between mb-3 lg:hidden">
+            {/* ── Mobile filter toggle bar — Filters button only, no sort ── */}
+            <div className="flex items-center mb-3 lg:hidden">
                 <button
                     onClick={() => setFilterOpen(true)}
                     className="inline-flex items-center gap-2 rounded-xl border border-[#ede9e3] bg-white px-4 py-2.5 text-sm font-medium text-[#3a2418] hover:bg-[#f0ebe4] transition shadow-sm"
@@ -27,7 +27,6 @@ export default function StoreShell({ children, filterSlot }) {
                     <FiSliders size={15} />
                     Filters
                 </button>
-                <SortFilter />
             </div>
 
             <div className="flex gap-4 lg:gap-6">

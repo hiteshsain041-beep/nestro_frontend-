@@ -309,30 +309,24 @@ export default function Header({ user }) {
 
         <div className="h-px bg-[#ede9e3] mx-4" />
 
-        {/* Auth links */}
+        {/* Auth section — show user info if logged in, no duplicate auth buttons */}
         <div className="flex flex-col px-3 py-4 gap-1">
           {user ? (
             <>
               <div className="px-4 py-3 bg-[#f0ebe4] rounded-xl mb-1">
                 <p className="text-sm font-semibold text-[#1a1007]">{user.name}</p>
-                <p className="text-xs text-[#9a8a7a]">Logged in</p>
+                <p className="text-xs text-[#9a8a7a]">
+                  Logged in · use Sign Out button above to logout
+                </p>
               </div>
               <Link href="/forget-Password" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm text-[#3a2418] hover:bg-[#f0ebe4] transition">
                 Forgot Password
               </Link>
-              <button onClick={handleLogout} className="text-left px-4 py-3 rounded-xl text-sm text-red-500 hover:bg-red-50 transition">
-                Sign Out
-              </button>
             </>
           ) : (
-            <>
-              <Link href="/login" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium text-[#3a2418] hover:bg-[#f0ebe4] transition">
-                Sign In
-              </Link>
-              <Link href="/register" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium bg-[#3a2418] text-white hover:bg-[#2a1a10] transition text-center">
-                Create Account
-              </Link>
-            </>
+            <Link href="/register" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium bg-[#3a2418] text-white hover:bg-[#2a1a10] transition text-center">
+              Create Account
+            </Link>
           )}
         </div>
 

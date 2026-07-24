@@ -216,33 +216,43 @@ export default function AddressSection({ onAddressSelect }) {
     const [addresses, setAddresses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    // true only when backend explicitly returns 401 — NOT on network/other errors
     const [unauthorized, setUnauthorized] = useState(false);
 
     // "add" | "edit" | null
     const [mode, setMode] = useState(null);
-    const [editTarget, setEditTarget] = useState(null);   // address being edited
+    const [editTarget, setEditTarget] = useState(null);
     const [selectedId, setSelectedId] = useState(null);
 
     // ── Load addresses on mount ──────────────────────────────────────────────
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const res = await fetchAddresses();
-            if (res.success) {
-                setAddresses(res.data ?? []);
-                // Auto-select the first address if available
-                if (res.data?.length) {
-                    setSelectedId(res.data[0]._id);
-                    onAddressSelect?.(res.data[0]);
+            setUnauthorized(false); // reset on every load attempt
+
+            try {
+                // Call the backend directly with axios (withCredentials: true is set globally)
+                // Using dynamic import of client to avoid circular dependency
+                const { client } = await import("@/utils/helper");
+                const { data } = await client.get("address");
+                if (data.success) {
+                    const list = data.data ?? [];
+                    setAddresses(list);
+                    if (list.length) {
+                        setSelectedId(list[0]._id);
+                        onAddressSelect?.(list[0]);
+                    }
                 }
-            } else if (
-                res.message?.toLowerCase().includes("unauthorized") ||
-                res.message?.toLowerCase().includes("no token") ||
-                res.message?.toLowerCase().includes("session")
-            ) {
-                setUnauthorized(true);
+            } catch (err) {
+                // Only show "unauthorized" UI for genuine 401 responses
+                // Other errors (network, 500) should NOT show the login prompt
+                if (err.response?.status === 401) {
+                    setUnauthorized(true);
+                }
+                // For all other errors, leave addresses empty — user can retry
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,15 +270,17 @@ export default function AddressSection({ onAddressSelect }) {
         const res = await createAddress(form);
         setSaving(false);
         if (res.success) {
-            toast.success(res.message);
+            toast.success(res.message || "Address added successfully");
             const updated = [res.data, ...addresses];
             setAddresses(updated);
-            // Auto-select newly added address
             setSelectedId(res.data._id);
             onAddressSelect?.(res.data);
             setMode(null);
+        } else if (res.status === 401 || res.message?.toLowerCase().includes("unauthorized")) {
+            setUnauthorized(true);
+            toast.error("Please sign in to save addresses");
         } else {
-            toast.error(res.message);
+            toast.error(res.message || "Failed to save address");
         }
     };
 
