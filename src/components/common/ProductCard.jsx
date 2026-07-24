@@ -8,7 +8,6 @@ import { FiHeart, FiEye, FiPlus, FiStar } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@/redux/features/cartSlice";
-import { client } from "@/utils/helper";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,7 +96,13 @@ export default function ProductCard({
             qty: 1,
         }));
         try {
-            await client.post("cart/add-to-cart", { productId: product._id, qty: 1 });
+            // BFF proxy — fixes cross-domain cookie issue on mobile
+            await fetch("/api/cart/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ productId: product._id, qty: 1 }),
+            });
         } catch { /* guest user — Redux already updated */ }
         finally { setAdding(false); }
     }, [dispatch, product, adding]);

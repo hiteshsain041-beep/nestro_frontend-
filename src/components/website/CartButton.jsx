@@ -1,7 +1,6 @@
 'use client';
 
 import { addToCart } from '@/redux/features/cartSlice';
-import { client } from '@/utils/helper';
 import React from 'react';
 import { FaPlus } from 'react-icons/fa';
 import { useDispatch } from 'react-redux';
@@ -10,7 +9,7 @@ export default function CartButton({ product }) {
     const dispatch = useDispatch();
 
     async function cartHandler() {
-        // ── Step 1: Update Redux + localStorage immediately (optimistic / guest) ──
+        // ── Step 1: Update Redux + localStorage immediately (optimistic) ──────
         dispatch(addToCart({
             id: product._id,
             name: product.name,
@@ -21,18 +20,23 @@ export default function CartButton({ product }) {
             qty: 1,
         }));
 
-        // ── Step 2: Sync to the backend DB in the background ──────────────────────
-        // client has withCredentials:true so the JWT cookie is sent automatically.
-        // If the user is not logged in, the request will 401 — we swallow that
-        // silently so guest users are unaffected.
+        // ── Step 2: Sync to MongoDB via BFF proxy (same-domain) ──────────────
+        // Using /api/cart/add (Next.js BFF) instead of calling Render directly.
+        // The BFF reads the jwt cookie server-side and adds Authorization header,
+        // fixing the cross-domain cookie issue on mobile browsers.
+        // 401 = guest user → ignored, Redux/localStorage cart is still correct.
         try {
-            await client.post('cart/add-to-cart', {
-                productId: product._id,
-                qty: 1,
+            await fetch("/api/cart/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    productId: product._id,
+                    qty: 1,
+                }),
             });
         } catch {
-            // 401 = guest user (no token) → ignore, Redux already updated
-            // Any other error → log quietly, local cart is still correct
+            // Network error — local cart still correct, sync on next login
         }
     }
 

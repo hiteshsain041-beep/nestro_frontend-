@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@/redux/features/cartSlice";
-import { client } from "@/utils/helper";
 import { toast } from "sonner";
 import {
     FiHeart, FiShare2, FiShoppingCart, FiZap, FiStar,
@@ -187,8 +186,8 @@ export default function ProductInfo({ product }) {
             {/* Stock */}
             <div>
                 <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${inStock
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-red-50 text-red-600"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-600"
                     }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${inStock ? "bg-emerald-500" : "bg-red-500"}`} />
                     {inStock ? "In Stock" : "Out of Stock"}
@@ -241,8 +240,8 @@ export default function ProductInfo({ product }) {
                 <button
                     onClick={() => { setWished((w) => !w); toast.success(wished ? "Removed from wishlist" : "Added to wishlist"); }}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${wished
-                            ? "border-red-200 bg-red-50 text-red-600"
-                            : "border-gray-200 text-gray-600 hover:border-[#a46d43] hover:text-[#a46d43]"
+                        ? "border-red-200 bg-red-50 text-red-600"
+                        : "border-gray-200 text-gray-600 hover:border-[#a46d43] hover:text-[#a46d43]"
                         }`}
                 >
                     {wished ? <FaHeart size={13} className="text-red-500" /> : <FiHeart size={13} />}
