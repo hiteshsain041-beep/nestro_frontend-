@@ -4,7 +4,7 @@ const PROTECTED_ROUTES = ['/checkout', '/profile'];
 const AUTH_ROUTES = ['/login', '/register', '/verify-otp'];
 const ADMIN_ROLES = ['admin', 'superAdmin'];
 
-export function middleware(request) {
+export function proxy(request) {
     const { pathname } = request.nextUrl;
 
     // jwt is httpOnly — only tells us if the user is authenticated at all.
