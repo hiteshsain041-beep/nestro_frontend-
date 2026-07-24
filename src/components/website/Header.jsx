@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { usePathname, useRouter } from "next/navigation";
-import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX, FiLogIn } from "react-icons/fi";
-import { toast } from "sonner";
+import { usePathname } from "next/navigation";
+import {
+  FiSearch, FiShoppingCart, FiUser, FiMenu, FiX,
+  FiLogIn, FiLogOut, FiChevronDown,
+} from "react-icons/fi";
 
 import { lsToCart } from "@/redux/features/cartSlice";
 
@@ -25,13 +27,12 @@ const TRANSLATIONS = {
 
 export default function Header({ user }) {
   const dispatch = useDispatch();
-  const router = useRouter();
   const pathname = usePathname();
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef(null);  // wraps BOTH the icon button and dropdown panel
 
   const [language, setLanguage] = useState("en");
-  const [open, setOpen] = useState(false);       // user dropdown
-  const [mobileOpen, setMobileOpen] = useState(false);      // mobile nav drawer
+  const [open, setOpen] = useState(false);  // profile dropdown (mobile + desktop)
+  const [mobileOpen, setMobileOpen] = useState(false);  // nav drawer (mobile)
 
   const cartItems = useSelector((state) => state.cart.items);
   const t = TRANSLATIONS[language];
@@ -44,25 +45,35 @@ export default function Header({ user }) {
     { name: t.checkout, path: "/checkout" },
   ], [t]);
 
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("lang");
-    if (savedLanguage) setLanguage(savedLanguage);
+    const saved = localStorage.getItem("lang");
+    if (saved) setLanguage(saved);
     dispatch(lsToCart());
   }, [dispatch]);
 
-  // Close user dropdown on outside click
+  // ── Close dropdown on outside click ───────────────────────────────────────
   useEffect(() => {
-    const handleOutsideClick = (e) => {
+    const handler = (e) => {
       if (!dropdownRef.current?.contains(e.target)) setOpen(false);
     };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Close mobile drawer on route change
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  // ── Close dropdown on Escape key ──────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") { setOpen(false); setMobileOpen(false); }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
-  // Prevent body scroll when drawer is open
+  // ── Close nav drawer on route change ──────────────────────────────────────
+  useEffect(() => { setMobileOpen(false); setOpen(false); }, [pathname]);
+
+  // ── Lock body scroll when nav drawer open ─────────────────────────────────
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -73,47 +84,111 @@ export default function Header({ user }) {
     localStorage.setItem("lang", target.value);
   };
 
-  const handleLogout = async () => {
+  // ── Logout — clears cookies on Vercel domain, then hard-reload ────────────
+  const handleLogout = useCallback(async () => {
+    setOpen(false);
+    setMobileOpen(false);
     try {
-      // Call the Next.js proxy route — NOT the Express backend directly.
-      // This clears jwt + role cookies on the frontend (Vercel) domain.
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // Even if the request fails, force a full reload to clear UI state
-    } finally {
-      // window.location.href triggers a full page reload — forces Next.js to
-      // re-run all Server Components (layout + getProfile) with cleared cookies,
-      // so Header reliably switches from authenticated to guest UI.
-      // router.push() + router.refresh() is NOT reliable here because the
-      // server-component cache may still serve the authenticated layout.
-      window.location.href = "/";
-    }
-  };
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch { /* ignore — hard reload clears UI anyway */ }
+    window.location.href = "/";
+  }, []);
+
+  // ── Profile dropdown content (shared by mobile + desktop) ─────────────────
+  const DropdownContent = (
+    <div
+      className="absolute right-0 mt-2 w-52 rounded-2xl border border-[#ede9e3]
+                 bg-white shadow-[0_8px_30px_rgba(58,36,24,0.14)]
+                 overflow-hidden z-[60]"
+      role="menu"
+      aria-orientation="vertical"
+    >
+      {user ? (
+        <>
+          {/* User info header */}
+          <div className="border-b border-[#f0ebe4] px-4 py-3 bg-[#faf8f5]">
+            <p className="font-semibold text-sm text-[#1a1007] truncate">{user.name}</p>
+            <p className="text-xs text-[#9a8a7a]">Welcome back 👋</p>
+          </div>
+
+          {/* Profile */}
+          <Link
+            href="/orders"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#3a2418]
+                       hover:bg-[#faf8f5] transition"
+          >
+            <FiUser size={14} className="opacity-60" /> My Orders
+          </Link>
+
+          <div className="h-px bg-[#f0ebe4] mx-3" />
+
+          {/* Sign Out */}
+          <button
+            role="menuitem"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm
+                       text-red-500 hover:bg-red-50 transition"
+          >
+            <FiLogOut size={14} /> Sign Out
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Sign In */}
+          <Link
+            href="/login"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#3a2418]
+                       hover:bg-[#faf8f5] transition"
+          >
+            <FiLogIn size={14} className="opacity-60" /> Sign In
+          </Link>
+
+          <div className="h-px bg-[#f0ebe4] mx-3" />
+
+          {/* Create Account */}
+          <Link
+            href="/register"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#3a2418]
+                       hover:bg-[#faf8f5] transition"
+          >
+            Create Account
+          </Link>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <>
+      {/* ══════════════════════════════════════════════════════════════════════
+          HEADER BAR
+      ══════════════════════════════════════════════════════════════════════ */}
       <header className="sticky top-0 z-50 bg-[#faf8f5] border-b border-[#ede9e3]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
 
-          {/* ── Logo ─────────────────────────────────────────── */}
+          {/* ── Logo ──────────────────────────────────────────────────────── */}
           <Link href="/" className="flex-shrink-0">
             <span className="text-lg sm:text-xl font-bold tracking-[0.3em] text-[#1a1007]">
               NESTRO.
             </span>
           </Link>
 
-          {/* ── Centre Nav — desktop only ─────────────────────── */}
+          {/* ── Desktop centre nav ────────────────────────────────────────── */}
           <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
             {menus.map((menu) => (
               <Link
                 key={menu.name}
                 href={menu.path}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200 ${pathname === menu.path
-                  ? "bg-[#3a2418] text-white shadow-sm"
-                  : "text-[#5a4a3a] hover:text-[#1a1007] hover:bg-[#f0ebe4]"
+                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200
+                  ${pathname === menu.path
+                    ? "bg-[#3a2418] text-white shadow-sm"
+                    : "text-[#5a4a3a] hover:text-[#1a1007] hover:bg-[#f0ebe4]"
                   }`}
               >
                 {menu.name}
@@ -121,12 +196,13 @@ export default function Header({ user }) {
             ))}
           </nav>
 
-          {/* ── Right Icons ───────────────────────────────────── */}
+          {/* ── Right icons ───────────────────────────────────────────────── */}
           <div className="flex items-center gap-0.5 sm:gap-1">
 
-            {/* Search — hidden on very small screens */}
+            {/* Search — sm+ only */}
             <button
-              className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
+              className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full
+                         text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
               aria-label="Search"
             >
               <FiSearch size={17} />
@@ -135,12 +211,15 @@ export default function Header({ user }) {
             {/* Cart */}
             <Link
               href="/cart"
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full
+                         text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
               aria-label="Shopping cart"
             >
               <FiShoppingCart size={17} />
               {cartItems.length > 0 && (
-                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#c97d4e] text-[9px] font-bold text-white leading-none">
+                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center
+                                 justify-center rounded-full bg-[#c97d4e] text-[9px]
+                                 font-bold text-white leading-none">
                   {cartItems.length > 9 ? "9+" : cartItems.length}
                 </span>
               )}
@@ -150,7 +229,9 @@ export default function Header({ user }) {
             <select
               value={language}
               onChange={handleLanguageChange}
-              className="hidden lg:block rounded-full border border-[#ede9e3] bg-transparent px-2.5 py-1.5 text-[11px] font-medium text-[#5a4a3a] outline-none cursor-pointer hover:bg-[#f0ebe4] transition"
+              className="hidden lg:block rounded-full border border-[#ede9e3] bg-transparent
+                         px-2.5 py-1.5 text-[11px] font-medium text-[#5a4a3a] outline-none
+                         cursor-pointer hover:bg-[#f0ebe4] transition"
               aria-label="Select language"
             >
               {LANGUAGES.map((lang) => (
@@ -158,100 +239,63 @@ export default function Header({ user }) {
               ))}
             </select>
 
-            {/* Mobile Sign In button — shown only on mobile when user is not logged in */}
+            {/* ── Profile icon + dropdown (BOTH mobile and desktop) ─────────
+                This is the SINGLE auth entry point — no duplicate buttons.
+                On mobile this replaces the old Sign In / Sign Out pills.
+                On desktop it sits beside the existing Sign In/Sign Out text  */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                aria-haspopup="true"
+                aria-label="Profile menu"
+                className={`flex h-10 w-10 items-center justify-center rounded-full border
+                            transition-all duration-200
+                            ${open
+                    ? "border-[#3a2418] bg-[#3a2418] text-white"
+                    : "border-[#ede9e3] bg-white text-[#5a4a3a] hover:border-[#c9b9a8]"
+                  }`}
+              >
+                {user
+                  ? <FiUser size={15} />
+                  : <FiLogIn size={15} />
+                }
+              </button>
+
+              {/* Dropdown panel */}
+              {open && DropdownContent}
+            </div>
+
+            {/* Desktop Sign In text link (guest only) — kept for discoverability */}
             {!user && (
               <Link
                 href="/login"
-                className="flex md:hidden h-9 items-center gap-1.5 px-3 rounded-full
-                           border border-[#c9a882] text-[#3a2418] text-[12px] font-semibold
-                           hover:bg-[#3a2418] hover:text-white hover:border-[#3a2418]
-                           transition-all duration-200"
+                className="hidden md:block text-[13px] font-medium text-[#5a4a3a]
+                           hover:text-[#1a1007] transition px-2"
               >
-                <FiLogIn size={13} />
                 Sign In
               </Link>
             )}
 
-            {/* Mobile Sign Out button — shown only on mobile when user IS logged in */}
+            {/* Desktop Sign Out pill (logged-in only) */}
             {user && (
               <button
                 onClick={handleLogout}
-                className="flex md:hidden h-9 items-center gap-1.5 px-3 rounded-full
-                           border border-red-200 text-red-600 text-[12px] font-semibold
-                           hover:bg-red-600 hover:text-white hover:border-red-600
-                           transition-all duration-200"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-full
+                           border border-[#ede9e3] bg-white px-4 py-1.5 text-[13px]
+                           font-medium text-[#3a2418] hover:bg-[#3a2418] hover:text-white
+                           hover:border-[#3a2418] transition-all duration-200"
               >
                 Sign Out
               </button>
-            )}
-
-            {/* User dropdown — desktop */}
-            <div className="relative hidden md:block" ref={dropdownRef}>
-              <button
-                onClick={() => setOpen((prev) => !prev)}
-                aria-expanded={open}
-                aria-haspopup="true"
-                aria-label="User menu"
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${open
-                  ? "border-[#3a2418] bg-[#3a2418] text-white"
-                  : "border-[#ede9e3] bg-white text-[#5a4a3a] hover:border-[#c9b9a8]"
-                  }`}
-              >
-                <FiUser size={15} />
-              </button>
-
-              {open && (
-                <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-[#ede9e3] bg-white shadow-[0_8px_30px_rgba(58,36,24,0.12)] overflow-hidden z-50">
-                  {user ? (
-                    <>
-                      <div className="border-b border-[#f0ebe4] px-4 py-3 bg-[#faf8f5]">
-                        <p className="font-semibold text-sm text-[#1a1007]">{user.name}</p>
-                        <p className="text-xs text-[#9a8a7a]">Welcome back 👋</p>
-                      </div>
-                      <Link href="/forget-Password" onClick={() => setOpen(false)} className="block px-4 py-2.5 text-sm text-[#3a2418] hover:bg-[#faf8f5] transition">
-                        Forgot Password
-                      </Link>
-                      <div className="h-px bg-[#f0ebe4] mx-3" />
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
-                        Sign Out
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <Link href="/login" onClick={() => setOpen(false)} className="block px-4 py-2.5 text-sm text-[#3a2418] hover:bg-[#faf8f5] transition">
-                        Sign In
-                      </Link>
-                      <Link href="/register" onClick={() => setOpen(false)} className="block px-4 py-2.5 text-sm text-[#3a2418] hover:bg-[#faf8f5] transition">
-                        Create Account
-                      </Link>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Sign Out — desktop pill */}
-            {user && (
-              <button
-                onClick={handleLogout}
-                className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-[#ede9e3] bg-white px-4 py-1.5 text-[13px] font-medium text-[#3a2418] hover:bg-[#3a2418] hover:text-white hover:border-[#3a2418] transition-all duration-200"
-              >
-                Sign Out
-              </button>
-            )}
-
-            {/* Sign In link — desktop, guest */}
-            {!user && (
-              <Link href="/login" className="hidden md:block text-[13px] font-medium text-[#5a4a3a] hover:text-[#1a1007] transition px-2">
-                Sign In
-              </Link>
             )}
 
             {/* Hamburger — mobile only */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="flex md:hidden h-10 w-10 items-center justify-center rounded-full text-[#5a4a3a] hover:bg-[#f0ebe4] transition ml-1"
-              aria-label="Open menu"
+              className="flex md:hidden h-10 w-10 items-center justify-center rounded-full
+                         text-[#5a4a3a] hover:bg-[#f0ebe4] transition ml-0.5"
+              aria-label="Open navigation menu"
             >
               <FiMenu size={20} />
             </button>
@@ -259,7 +303,10 @@ export default function Header({ user }) {
         </div>
       </header>
 
-      {/* ── Mobile Drawer ─────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          MOBILE NAV DRAWER
+      ══════════════════════════════════════════════════════════════════════ */}
+
       {/* Backdrop */}
       {mobileOpen && (
         <div
@@ -274,8 +321,9 @@ export default function Header({ user }) {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation"
-        className={`fixed top-0 left-0 z-50 h-full w-72 max-w-[85vw] bg-[#faf8f5] shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed top-0 left-0 z-50 h-full w-72 max-w-[85vw] bg-[#faf8f5]
+                    shadow-2xl transition-transform duration-300 ease-in-out md:hidden
+                    ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Drawer header */}
         <div className="flex items-center justify-between border-b border-[#ede9e3] px-5 py-4">
@@ -284,7 +332,8 @@ export default function Header({ user }) {
           </Link>
           <button
             onClick={() => setMobileOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
+            className="flex h-9 w-9 items-center justify-center rounded-full
+                       text-[#5a4a3a] hover:bg-[#f0ebe4] transition"
             aria-label="Close menu"
           >
             <FiX size={20} />
@@ -297,9 +346,10 @@ export default function Header({ user }) {
             <Link
               key={menu.name}
               href={menu.path}
-              className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${pathname === menu.path
-                ? "bg-[#3a2418] text-white"
-                : "text-[#3a2418] hover:bg-[#f0ebe4]"
+              className={`px-4 py-3 rounded-xl text-sm font-medium transition-all
+                ${pathname === menu.path
+                  ? "bg-[#3a2418] text-white"
+                  : "text-[#3a2418] hover:bg-[#f0ebe4]"
                 }`}
             >
               {menu.name}
@@ -309,22 +359,22 @@ export default function Header({ user }) {
 
         <div className="h-px bg-[#ede9e3] mx-4" />
 
-        {/* Auth section — show user info if logged in, no duplicate auth buttons */}
+        {/* Auth section in drawer — user info only, no duplicate buttons */}
         <div className="flex flex-col px-3 py-4 gap-1">
           {user ? (
-            <>
-              <div className="px-4 py-3 bg-[#f0ebe4] rounded-xl mb-1">
-                <p className="text-sm font-semibold text-[#1a1007]">{user.name}</p>
-                <p className="text-xs text-[#9a8a7a]">
-                  Logged in · use Sign Out button above to logout
-                </p>
-              </div>
-              <Link href="/forget-Password" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm text-[#3a2418] hover:bg-[#f0ebe4] transition">
-                Forgot Password
-              </Link>
-            </>
+            <div className="px-4 py-3 bg-[#f0ebe4] rounded-xl">
+              <p className="text-sm font-semibold text-[#1a1007] truncate">{user.name}</p>
+              <p className="text-xs text-[#9a8a7a] mt-0.5">
+                Use the profile icon ↗ for Sign Out
+              </p>
+            </div>
           ) : (
-            <Link href="/register" onClick={() => setMobileOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium bg-[#3a2418] text-white hover:bg-[#2a1a10] transition text-center">
+            <Link
+              href="/register"
+              onClick={() => setMobileOpen(false)}
+              className="px-4 py-3 rounded-xl text-sm font-medium bg-[#3a2418] text-white
+                         hover:bg-[#2a1a10] transition text-center"
+            >
               Create Account
             </Link>
           )}
@@ -332,11 +382,14 @@ export default function Header({ user }) {
 
         {/* Language */}
         <div className="px-7 pt-2">
-          <label className="text-xs font-semibold text-[#9a8a7a] uppercase tracking-wide block mb-1.5">Language</label>
+          <label className="text-xs font-semibold text-[#9a8a7a] uppercase tracking-wide block mb-1.5">
+            Language
+          </label>
           <select
             value={language}
             onChange={handleLanguageChange}
-            className="w-full rounded-xl border border-[#ede9e3] bg-white px-3 py-2.5 text-sm text-[#5a4a3a] outline-none"
+            className="w-full rounded-xl border border-[#ede9e3] bg-white px-3 py-2.5
+                       text-sm text-[#5a4a3a] outline-none"
           >
             {LANGUAGES.map((lang) => (
               <option key={lang.code} value={lang.code}>{lang.name}</option>
