@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
-import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX } from "react-icons/fi";
+import { FiSearch, FiShoppingCart, FiUser, FiMenu, FiX, FiLogIn } from "react-icons/fi";
 import { toast } from "sonner";
 
-import ThemeToggle from "./ThemeToggle";
 import { lsToCart } from "@/redux/features/cartSlice";
 
 const LANGUAGES = [
@@ -159,7 +158,19 @@ export default function Header({ user }) {
               ))}
             </select>
 
-            <ThemeToggle />
+            {/* Mobile Sign In button — shown only on mobile when user is not logged in */}
+            {!user && (
+              <Link
+                href="/login"
+                className="flex md:hidden h-9 items-center gap-1.5 px-3 rounded-full
+                           border border-[#c9a882] text-[#3a2418] text-[12px] font-semibold
+                           hover:bg-[#3a2418] hover:text-white hover:border-[#3a2418]
+                           transition-all duration-200"
+              >
+                <FiLogIn size={13} />
+                Sign In
+              </Link>
+            )}
 
             {/* User dropdown — desktop */}
             <div className="relative hidden md:block" ref={dropdownRef}>

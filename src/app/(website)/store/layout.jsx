@@ -28,7 +28,10 @@ export default function Layout({ children }) {
 
     return (
         <>
-            <Hero />
+            {/* Hero — hidden on mobile, visible on md+ */}
+            <div className="hidden md:block">
+                <Hero />
+            </div>
             <StoreShell filterSlot={filterSlot}>
                 {children}
             </StoreShell>

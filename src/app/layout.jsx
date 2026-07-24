@@ -1,6 +1,5 @@
- import "./globals.css";
+import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import StoreProvider from "@/redux/StoreProvider";
 
@@ -23,21 +22,13 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <StoreProvider>
-            <Toaster position="top-right" richColors />
-            {children}
-          </StoreProvider>
-        </ThemeProvider>
+        <StoreProvider>
+          <Toaster position="top-right" richColors />
+          {children}
+        </StoreProvider>
       </body>
     </html>
   );

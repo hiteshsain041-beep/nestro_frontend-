@@ -3,8 +3,8 @@ export default function Loading() {
         <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
             <div className="text-center">
 
-                {/* Logo */}
-                <h1 className="text-5xl font-light tracking-[10px] text-[#2A170F]">
+                {/* Logo — reduced size */}
+                <h1 className="text-3xl font-light tracking-[7px] text-[#2A170F]">
                     NESTRO<span className="text-[#B07A50]">.</span>
                 </h1>
 

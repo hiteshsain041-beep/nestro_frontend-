@@ -51,7 +51,7 @@ export default async function Page({ searchParams }) {
                 <span className="font-semibold text-[#1a1007]">{products.length}</span> product{products.length !== 1 ? "s" : ""} found
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {products.map((product, idx) => (
                     <ProductCard key={product._id} product={product} priority={idx < 4} />
                 ))}
